@@ -5,6 +5,7 @@ from json import dumps, loads
 from os import environ
 from shutil import get_terminal_size
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError
 
 
 def big_print(msg: str) -> None:
@@ -35,18 +36,25 @@ def parse_args() -> Namespace:
     return args
 
 
-def login(username: str, password: str) -> str:
-    uri = "https://hub.docker.com/v2/users/login/"
-    data = {"username": username, "password": password}
+def login(identifier: str, secret: str) -> str:
+    uri = "https://hub.docker.com/v2/auth/token"
+    data = {"identifier": identifier, "secret": secret}
     req = Request(
         uri,
         method="POST",
         headers={"Content-Type": "application/json"},
         data=dumps(data).encode(),
     )
-    with urlopen(req) as resp:
-        msg = resp.read().decode()
-        return loads(msg)["token"]
+    try:
+        with urlopen(req) as resp:
+            msg = resp.read().decode()
+            return loads(msg)["access_token"]
+    except HTTPError as err:
+        print(err)
+        print(err.reason)
+        print(err.headers)
+        print(err.fp.read().decode())
+        raise err
 
 
 def set_repo(token: str, repo: str, readme: str) -> str:
